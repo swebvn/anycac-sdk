@@ -1,3 +1,2 @@
-name = "anycac-worker"
-main = "anycac.js"
+name = "anycac-sdk"
 compatibility_date = "2024-04-01"

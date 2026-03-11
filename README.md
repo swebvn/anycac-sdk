@@ -21,6 +21,14 @@ If you later attach a custom domain, replace the Pages URL with your own host.
 - Build output directory: leave empty or use `/`
 - After deploy, the SDK is available at `/anycac.js`
 
+If you deploy from the CLI, use Pages deploy, not Worker deploy:
+
+```bash
+npx wrangler pages deploy . --project-name anycac-sdk
+```
+
+Do not run `npx wrangler deploy` here. That command deploys a Worker script, and this SDK file is browser code that expects `window`, so it will fail validation in the Worker runtime.
+
 
 This keeps the repo minimal: one SDK file plus documentation.
 
