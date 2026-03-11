@@ -1,0 +1,38 @@
+name: Release SDK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate version
+        run: node scripts/check-version.js "${GITHUB_REF_NAME}"
+
+      - name: Generate checksum
+        run: shasum -a 256 anycac.js > anycac.js.sha256
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            anycac.js \
+            anycac.js.sha256 \
+            --generate-notes \
+            --title "${GITHUB_REF_NAME}"

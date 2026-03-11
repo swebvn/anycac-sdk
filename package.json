@@ -1,0 +1,17 @@
+{
+  "name": "anycac-sdk",
+  "version": "1.0.0",
+  "description": "Browser SDK for AnyCac cart, checkout, and payment callback routing.",
+  "license": "UNLICENSED",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swebvn/anycac-sdk.git"
+  },
+  "scripts": {
+    "check:version": "node scripts/check-version.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
