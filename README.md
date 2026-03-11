@@ -4,30 +4,29 @@ Standalone browser SDK for embedding AnyCac cart, checkout, and payment return f
 
 ## Install
 
-Load the SDK directly from your Cloudflare Pages site:
+Load the SDK from your Cloudflare-hosted URL:
 
 ```html
-<script src="https://anycac-sdk.pages.dev/anycac.js"></script>
+<script src="https://anycac-sdk.<your-subdomain>.workers.dev/anycac.js"></script>
 ```
 
-If you later attach a custom domain, replace the Pages URL with your own host.
+If you later attach a custom domain, replace the Workers URL with your own host.
 
-## Cloudflare Pages Deployment
+## Cloudflare Deployment
 
-- This repo is a static Pages project with no build step
-- `anycac.js` is served directly from the repository root
-- In Cloudflare Pages, connect the `swebvn/anycac-sdk` repo
-- Build command: leave empty
-- Build output directory: leave empty or use `/`
+- This repo deploys as a tiny Worker that serves static assets from `public/`
+- `public/anycac.js` is served as `/anycac.js`
+- `worker.js` does not run business logic; it only forwards requests to the static asset binding
+- This setup is useful when your platform forces `npx wrangler deploy`
 - After deploy, the SDK is available at `/anycac.js`
 
-If you deploy from the CLI, use Pages deploy, not Worker deploy:
+If your deploy environment forces `npx wrangler deploy`, this repository is now configured for that flow.
+
+If you deploy from the CLI, use:
 
 ```bash
-npx wrangler pages deploy . --project-name anycac-sdk
+npx wrangler deploy
 ```
-
-Do not run `npx wrangler deploy` here. That command deploys a Worker script, and this SDK file is browser code that expects `window`, so it will fail validation in the Worker runtime.
 
 
 This keeps the repo minimal: one SDK file plus documentation.
@@ -49,10 +48,10 @@ Your payment backend stays in Woo with the AnyCac-compatible WooCommerce plugin.
 
 ## 1) Include the SDK
 
-Use your Cloudflare Pages SDK URL:
+Use your deployed Cloudflare SDK URL:
 
 ```html
-<script src="https://anycac-sdk.pages.dev/anycac.js"></script>
+<script src="https://anycac-sdk.<your-subdomain>.workers.dev/anycac.js"></script>
 ```
 
 If you attach a custom domain, use that instead.
