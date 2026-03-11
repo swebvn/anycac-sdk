@@ -7,18 +7,18 @@ Standalone browser SDK for embedding AnyCac cart, checkout, and payment return f
 Load the SDK from your Cloudflare-hosted URL:
 
 ```html
-<script src="https://anycac-sdk.<your-subdomain>.workers.dev/anycac.js"></script>
+<script src="https://anycac-sdk.pages.dev/public/anycac.js"></script>
 ```
 
-If you later attach a custom domain, replace the Workers URL with your own host.
+If you later attach a custom domain, replace the hosted URL with your own host.
 
 ## Cloudflare Deployment
 
 - This repo deploys as a tiny Worker that serves static assets from `public/`
-- `public/anycac.js` is served as `/anycac.js`
+- `public/anycac.js` is currently served at `/public/anycac.js`
 - `worker.js` does not run business logic; it only forwards requests to the static asset binding
 - This setup is useful when your platform forces `npx wrangler deploy`
-- After deploy, the SDK is available at `/anycac.js`
+- After deploy, the SDK is available at `https://anycac-sdk.pages.dev/public/anycac.js`
 
 If your deploy environment forces `npx wrangler deploy`, this repository is now configured for that flow.
 
@@ -51,7 +51,7 @@ Your payment backend stays in Woo with the AnyCac-compatible WooCommerce plugin.
 Use your deployed Cloudflare SDK URL:
 
 ```html
-<script src="https://anycac-sdk.<your-subdomain>.workers.dev/anycac.js"></script>
+<script src="https://anycac-sdk.pages.dev/public/anycac.js"></script>
 ```
 
 If you attach a custom domain, use that instead.
