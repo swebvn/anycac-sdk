@@ -9,9 +9,9 @@
         autoMount: true,
         warmCartIframe: false,
         routes: {
-            checkout: { path: '/checkout.html', container: '' },
-            return: { path: '/thank-you.html', container: '' },
-            cart: { path: '/cart.html', container: '' }
+            checkout: { paths: ['/checkout.html'], container: '' },
+            return: { paths: ['/thank-you.html'], container: '' },
+            cart: { paths: ['/cart.html'], container: '' }
         },
         cartTrigger: '',
         storageKey: 'anycac_payment_state'
@@ -118,6 +118,110 @@
         return path;
     }
 
+    function normalizeRoutePathPattern(path) {
+        return normalizePathname(normalizePath(path));
+    }
+
+    function isDynamicRoutePath(path) {
+        return path.indexOf('*') !== -1 || path.indexOf(':') !== -1;
+    }
+
+    function mergeRoutePaths(additionalPaths, fallbackPaths) {
+        var rawPaths = [];
+        if (Array.isArray(additionalPaths)) {
+            for (var i = 0; i < additionalPaths.length; i += 1) {
+                if (typeof additionalPaths[i] === 'string' && additionalPaths[i]) {
+                    rawPaths.push(additionalPaths[i]);
+                }
+            }
+        }
+        if (Array.isArray(fallbackPaths)) {
+            for (var j = 0; j < fallbackPaths.length; j += 1) {
+                if (typeof fallbackPaths[j] === 'string' && fallbackPaths[j]) {
+                    rawPaths.push(fallbackPaths[j]);
+                }
+            }
+        }
+        if (!rawPaths.length) {
+            rawPaths.push('/');
+        }
+
+        var normalized = [];
+        var seen = {};
+        for (var k = 0; k < rawPaths.length; k += 1) {
+            var normalizedPath = normalizeRoutePathPattern(rawPaths[k]);
+            if (seen[normalizedPath]) {
+                continue;
+            }
+            seen[normalizedPath] = true;
+            normalized.push(normalizedPath);
+        }
+
+        if (!normalized.length) {
+            normalized.push('/');
+        }
+
+        return normalized;
+    }
+
+    function pickPrimaryRoutePath(paths) {
+        for (var i = 0; i < paths.length; i += 1) {
+            if (!isDynamicRoutePath(paths[i])) {
+                return paths[i];
+            }
+        }
+        return paths[0];
+    }
+
+    function buildRouteConfig(routeInput, fallbackRoute) {
+        var input = routeInput || {};
+        var paths = mergeRoutePaths(input.paths, fallbackRoute.paths);
+        return {
+            paths: paths,
+            container: input.container || ''
+        };
+    }
+
+    function getRoutePrimaryPath(route) {
+        var paths = Array.isArray(route && route.paths) && route.paths.length ? route.paths : ['/'];
+        return pickPrimaryRoutePath(paths);
+    }
+
+    function routePathMatches(pathPattern, pathname) {
+        var normalizedPathname = normalizePathname(pathname);
+        var normalizedPattern = normalizeRoutePathPattern(pathPattern);
+
+        if (normalizedPathname === normalizedPattern) {
+            return true;
+        }
+
+        if (!isDynamicRoutePath(normalizedPattern)) {
+            return false;
+        }
+
+        var escapedPattern = normalizedPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+        var regexPattern = escapedPattern
+            .replace(/\*/g, '.*')
+            .replace(/:[A-Za-z0-9_]+/g, '[^/]+');
+
+        return new RegExp('^' + regexPattern + '$').test(normalizedPathname);
+    }
+
+    function routeMatches(route, pathname) {
+        if (!route) {
+            return false;
+        }
+
+        var paths = Array.isArray(route.paths) && route.paths.length ? route.paths : ['/'];
+        for (var i = 0; i < paths.length; i += 1) {
+            if (routePathMatches(paths[i], pathname)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function mergeConfig(rawConfig) {
         var input = rawConfig || {};
 
@@ -130,19 +234,23 @@
 
         var routesInput = input.routes || {};
         var cartTrigger = input.cartTrigger || (routesInput.cart && routesInput.cart.trigger) || '';
+        var returnRouteInput = routesInput.return || {};
+        var thankYouRouteInput = routesInput.thankYou || {};
+        var returnRoutePaths = [];
+        if (Array.isArray(returnRouteInput.paths)) {
+            returnRoutePaths = returnRoutePaths.concat(returnRouteInput.paths);
+        }
+        if (Array.isArray(thankYouRouteInput.paths)) {
+            returnRoutePaths = returnRoutePaths.concat(thankYouRouteInput.paths);
+        }
+
         var normalizedRoutes = {
-            checkout: {
-                path: normalizePath((routesInput.checkout && routesInput.checkout.path) || DEFAULT_CONFIG.routes.checkout.path),
-                container: (routesInput.checkout && routesInput.checkout.container) || ''
-            },
-            return: {
-                path: normalizePath((routesInput.return && routesInput.return.path) || (routesInput.thankYou && routesInput.thankYou.path) || DEFAULT_CONFIG.routes.return.path),
-                container: (routesInput.return && routesInput.return.container) || (routesInput.thankYou && routesInput.thankYou.container) || ''
-            },
-            cart: {
-                path: normalizePath((routesInput.cart && routesInput.cart.path) || DEFAULT_CONFIG.routes.cart.path),
-                container: (routesInput.cart && routesInput.cart.container) || ''
-            }
+            checkout: buildRouteConfig(routesInput.checkout, DEFAULT_CONFIG.routes.checkout),
+            return: buildRouteConfig({
+                paths: returnRoutePaths,
+                container: returnRouteInput.container || thankYouRouteInput.container || ''
+            }, DEFAULT_CONFIG.routes.return),
+            cart: buildRouteConfig(routesInput.cart, DEFAULT_CONFIG.routes.cart)
         };
 
         return {
@@ -237,7 +345,7 @@
         if (!route) {
             throw new Error('Unknown AnyCac route: ' + routeName);
         }
-        return new URL(route.path, window.location.origin);
+        return new URL(getRoutePrimaryPath(route), window.location.origin);
     }
 
     function routeToBootstrapUrl(routeName) {
@@ -245,7 +353,7 @@
         if (!route) {
             throw new Error('Unknown AnyCac bootstrap route: ' + routeName);
         }
-        return new URL(route.path, window.location.origin);
+        return new URL(getRoutePrimaryPath(route), window.location.origin);
     }
 
     function hasPayPalReturn(url) {
@@ -296,8 +404,7 @@
 
         for (var i = 0; i < routeNames.length; i += 1) {
             var name = routeNames[i];
-            var routePath = normalizePathname(state.config.routes[name].path);
-            if (pathname === routePath) {
+            if (routeMatches(state.config.routes[name], pathname)) {
                 return name;
             }
         }
@@ -307,15 +414,15 @@
     function isKnownBootstrapRoute(pathname) {
         var normalizedPathname = normalizePathname(pathname);
 
-        if (normalizedPathname === normalizePathname(DEFAULT_CONFIG.routes.checkout.path)) {
+        if (routeMatches(DEFAULT_CONFIG.routes.checkout, normalizedPathname)) {
             return true;
         }
 
-        if (normalizedPathname === normalizePathname(DEFAULT_CONFIG.routes.return.path)) {
+        if (routeMatches(DEFAULT_CONFIG.routes.return, normalizedPathname)) {
             return true;
         }
 
-        if (normalizedPathname === normalizePathname(DEFAULT_CONFIG.routes.cart.path)) {
+        if (routeMatches(DEFAULT_CONFIG.routes.cart, normalizedPathname)) {
             return true;
         }
 
