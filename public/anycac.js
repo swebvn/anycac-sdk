@@ -1,7 +1,7 @@
 (function (global) {
     'use strict';
 
-    var SDK_VERSION = '1.0.0';
+    var SDK_VERSION = '1.1.0';
 
     var DEFAULT_CONFIG = {
         paymentStore: 'https://woo-store.test',
