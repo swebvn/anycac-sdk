@@ -9,9 +9,9 @@
         autoMount: true,
         warmCartIframe: false,
         routes: {
-            checkout: { paths: ['/checkout.html'], container: '' },
-            return: { paths: ['/thank-you.html'], container: '' },
-            cart: { paths: ['/cart.html'], container: '' }
+            checkout: { path: '/checkout.html', container: '' },
+            return: { path: '/thank-you.html', container: '' },
+            cart: { path: '/cart.html', container: '' }
         },
         cartTrigger: '',
         storageKey: 'anycac_payment_state'
@@ -126,21 +126,26 @@
         return path.indexOf('*') !== -1 || path.indexOf(':') !== -1;
     }
 
-    function mergeRoutePaths(additionalPaths, fallbackPaths) {
+    function mergeRoutePaths(pathInput, fallbackPath, legacyPaths) {
         var rawPaths = [];
-        if (Array.isArray(additionalPaths)) {
-            for (var i = 0; i < additionalPaths.length; i += 1) {
-                if (typeof additionalPaths[i] === 'string' && additionalPaths[i]) {
-                    rawPaths.push(additionalPaths[i]);
+        if (typeof pathInput === 'string' && pathInput) {
+            rawPaths.push(pathInput);
+        } else if (Array.isArray(pathInput)) {
+            for (var i = 0; i < pathInput.length; i += 1) {
+                if (typeof pathInput[i] === 'string' && pathInput[i]) {
+                    rawPaths.push(pathInput[i]);
                 }
             }
         }
-        if (Array.isArray(fallbackPaths)) {
-            for (var j = 0; j < fallbackPaths.length; j += 1) {
-                if (typeof fallbackPaths[j] === 'string' && fallbackPaths[j]) {
-                    rawPaths.push(fallbackPaths[j]);
+        if (Array.isArray(legacyPaths)) {
+            for (var j = 0; j < legacyPaths.length; j += 1) {
+                if (typeof legacyPaths[j] === 'string' && legacyPaths[j]) {
+                    rawPaths.push(legacyPaths[j]);
                 }
             }
+        }
+        if (typeof fallbackPath === 'string' && fallbackPath) {
+            rawPaths.push(fallbackPath);
         }
         if (!rawPaths.length) {
             rawPaths.push('/');
@@ -175,16 +180,32 @@
 
     function buildRouteConfig(routeInput, fallbackRoute) {
         var input = routeInput || {};
-        var paths = mergeRoutePaths(input.paths, fallbackRoute.paths);
+        var paths = mergeRoutePaths(input.path, fallbackRoute.path, input.paths);
         return {
-            paths: paths,
+            path: pickPrimaryRoutePath(paths),
+            matchPaths: paths,
             container: input.container || ''
         };
     }
 
+    function getRouteMatchPaths(route) {
+        if (Array.isArray(route && route.matchPaths) && route.matchPaths.length) {
+            return route.matchPaths;
+        }
+
+        if (Array.isArray(route && route.path) && route.path.length) {
+            return mergeRoutePaths(route.path, '/', null);
+        }
+
+        if (typeof (route && route.path) === 'string' && route.path) {
+            return [normalizeRoutePathPattern(route.path)];
+        }
+
+        return ['/'];
+    }
+
     function getRoutePrimaryPath(route) {
-        var paths = Array.isArray(route && route.paths) && route.paths.length ? route.paths : ['/'];
-        return pickPrimaryRoutePath(paths);
+        return pickPrimaryRoutePath(getRouteMatchPaths(route));
     }
 
     function routePathMatches(pathPattern, pathname) {
@@ -212,7 +233,7 @@
             return false;
         }
 
-        var paths = Array.isArray(route.paths) && route.paths.length ? route.paths : ['/'];
+        var paths = getRouteMatchPaths(route);
         for (var i = 0; i < paths.length; i += 1) {
             if (routePathMatches(paths[i], pathname)) {
                 return true;
@@ -236,18 +257,23 @@
         var cartTrigger = input.cartTrigger || (routesInput.cart && routesInput.cart.trigger) || '';
         var returnRouteInput = routesInput.return || {};
         var thankYouRouteInput = routesInput.thankYou || {};
-        var returnRoutePaths = [];
+        var returnRoutePath = returnRouteInput.path;
+        var returnLegacyPaths = [];
         if (Array.isArray(returnRouteInput.paths)) {
-            returnRoutePaths = returnRoutePaths.concat(returnRouteInput.paths);
+            returnLegacyPaths = returnLegacyPaths.concat(returnRouteInput.paths);
+        }
+        if (returnRoutePath == null && thankYouRouteInput.path != null) {
+            returnRoutePath = thankYouRouteInput.path;
         }
         if (Array.isArray(thankYouRouteInput.paths)) {
-            returnRoutePaths = returnRoutePaths.concat(thankYouRouteInput.paths);
+            returnLegacyPaths = returnLegacyPaths.concat(thankYouRouteInput.paths);
         }
 
         var normalizedRoutes = {
             checkout: buildRouteConfig(routesInput.checkout, DEFAULT_CONFIG.routes.checkout),
             return: buildRouteConfig({
-                paths: returnRoutePaths,
+                path: returnRoutePath,
+                paths: returnLegacyPaths,
                 container: returnRouteInput.container || thankYouRouteInput.container || ''
             }, DEFAULT_CONFIG.routes.return),
             cart: buildRouteConfig(routesInput.cart, DEFAULT_CONFIG.routes.cart)
