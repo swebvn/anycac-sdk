@@ -9,9 +9,9 @@
         autoMount: true,
         warmCartIframe: false,
         routes: {
-            checkout: { path: '/checkout.html', container: '' },
-            return: { path: '/thank-you.html', container: '' },
-            cart: { path: '/cart.html', container: '' }
+            cart: { path: '/cart', container: '' },
+            checkout: { path: '/checkout', container: '' },
+            return: { path: '/thank-you', container: '' },
         },
         cartTrigger: '',
         storageKey: 'anycac_payment_state'
@@ -725,8 +725,8 @@
         var frame = resolveRouteFrame('return', target);
         var currentUrl = new URL(window.location.href);
 
-        var orderId = currentUrl.searchParams.get('order_id');
-        var orderKey = currentUrl.searchParams.get('order_key');
+        var orderId = currentUrl.searchParams.get('order_id') || currentUrl.searchParams.get('anycac_order_id');
+        var orderKey = currentUrl.searchParams.get('order_key') || currentUrl.searchParams.get('anycac_order_key');
 
         if (hasPayPalCancel(currentUrl) || hasStripeReturnCancel(currentUrl)) {
             var checkoutUrl = routeToUrl('checkout');
