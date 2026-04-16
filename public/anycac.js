@@ -4,7 +4,7 @@
     var SDK_VERSION = '1.1.0';
 
     var DEFAULT_CONFIG = {
-        paymentStore: 'https://woo-store.test',
+        paymentStore: 'https://deceit.test',
         autoRouteCallbacks: true,
         autoMount: true,
         warmCartIframe: false,
@@ -726,7 +726,7 @@
         var currentUrl = new URL(window.location.href);
 
         var orderId = currentUrl.searchParams.get('order_id') || currentUrl.searchParams.get('anycac_order_id');
-        var orderKey = currentUrl.searchParams.get('order_key') || currentUrl.searchParams.get('anycac_order_key');
+        var orderKey = currentUrl.searchParams.get('key') || currentUrl.searchParams.get('anycac_order_key');
 
         if (hasPayPalCancel(currentUrl) || hasStripeReturnCancel(currentUrl)) {
             var checkoutUrl = routeToUrl('checkout');
