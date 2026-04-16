@@ -813,7 +813,7 @@
         panel.style.width = 'min(560px, 96vw)';
         panel.style.height = '100%';
         panel.style.background = '#fff';
-        panel.style.borderRadius = '12px 0 0 12px';
+        panel.style.borderRadius = '6px 0 0 6px';
         panel.style.overflow = 'hidden';
         panel.style.boxShadow = '-12px 0 32px rgba(0, 0, 0, 0.18)';
         panel.style.display = 'flex';
