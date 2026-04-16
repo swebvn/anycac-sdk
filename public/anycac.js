@@ -142,71 +142,22 @@
                 if (typeof legacyPaths[j] === 'string' && legacyPaths[j]) {
                     rawPaths.push(legacyPaths[j]);
                 }
+            function buildRouteConfig(routeInput, fallbackRoute) {
+                var input = routeInput || {};
+                var fallbackSource = fallbackRoute || {};
+                return {
+                    path: normalizeRoutePathPattern(input.path || fallbackSource.path || '/'),
+                    container: input.container || fallbackSource.container || ''
+                };
             }
-        }
-        if (typeof fallbackPath === 'string' && fallbackPath) {
-            rawPaths.push(fallbackPath);
-        }
-        if (!rawPaths.length) {
-            rawPaths.push('/');
-        }
 
-        var normalized = [];
-        var seen = {};
-        for (var k = 0; k < rawPaths.length; k += 1) {
-            var normalizedPath = normalizeRoutePathPattern(rawPaths[k]);
-            if (seen[normalizedPath]) {
-                continue;
+            function getRoutePrimaryPath(route) {
+                if (typeof (route && route.path) === 'string' && route.path) {
+                    return normalizeRoutePathPattern(route.path);
+                }
+
+                return '/';
             }
-            seen[normalizedPath] = true;
-            normalized.push(normalizedPath);
-        }
-
-        if (!normalized.length) {
-            normalized.push('/');
-        }
-
-        return normalized;
-    }
-
-    function pickPrimaryRoutePath(paths) {
-        for (var i = 0; i < paths.length; i += 1) {
-            if (!isDynamicRoutePath(paths[i])) {
-                return paths[i];
-            }
-        }
-        return paths[0];
-    }
-
-    function buildRouteConfig(routeInput, fallbackRoute) {
-        var input = routeInput || {};
-        var paths = mergeRoutePaths(input.path, fallbackRoute.path, input.paths);
-        return {
-            path: pickPrimaryRoutePath(paths),
-            matchPaths: paths,
-            container: input.container || ''
-        };
-    }
-
-    function getRouteMatchPaths(route) {
-        if (Array.isArray(route && route.matchPaths) && route.matchPaths.length) {
-            return route.matchPaths;
-        }
-
-        if (Array.isArray(route && route.path) && route.path.length) {
-            return mergeRoutePaths(route.path, '/', null);
-        }
-
-        if (typeof (route && route.path) === 'string' && route.path) {
-            return [normalizeRoutePathPattern(route.path)];
-        }
-
-        return ['/'];
-    }
-
-    function getRoutePrimaryPath(route) {
-        return pickPrimaryRoutePath(getRouteMatchPaths(route));
-    }
 
     function routePathMatches(pathPattern, pathname) {
         var normalizedPathname = normalizePathname(pathname);
@@ -233,14 +184,7 @@
             return false;
         }
 
-        var paths = getRouteMatchPaths(route);
-        for (var i = 0; i < paths.length; i += 1) {
-            if (routePathMatches(paths[i], pathname)) {
-                return true;
-            }
-        }
-
-        return false;
+        return routePathMatches(getRoutePrimaryPath(route), pathname);
     }
 
     function mergeConfig(rawConfig) {
@@ -258,22 +202,14 @@
         var returnRouteInput = routesInput.return || {};
         var thankYouRouteInput = routesInput.thankYou || {};
         var returnRoutePath = returnRouteInput.path;
-        var returnLegacyPaths = [];
-        if (Array.isArray(returnRouteInput.paths)) {
-            returnLegacyPaths = returnLegacyPaths.concat(returnRouteInput.paths);
-        }
         if (returnRoutePath == null && thankYouRouteInput.path != null) {
             returnRoutePath = thankYouRouteInput.path;
-        }
-        if (Array.isArray(thankYouRouteInput.paths)) {
-            returnLegacyPaths = returnLegacyPaths.concat(thankYouRouteInput.paths);
         }
 
         var normalizedRoutes = {
             checkout: buildRouteConfig(routesInput.checkout, DEFAULT_CONFIG.routes.checkout),
             return: buildRouteConfig({
                 path: returnRoutePath,
-                paths: returnLegacyPaths,
                 container: returnRouteInput.container || thankYouRouteInput.container || ''
             }, DEFAULT_CONFIG.routes.return),
             cart: buildRouteConfig(routesInput.cart, DEFAULT_CONFIG.routes.cart)
