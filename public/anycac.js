@@ -142,22 +142,62 @@
                 if (typeof legacyPaths[j] === 'string' && legacyPaths[j]) {
                     rawPaths.push(legacyPaths[j]);
                 }
-            function buildRouteConfig(routeInput, fallbackRoute) {
-                var input = routeInput || {};
-                var fallbackSource = fallbackRoute || {};
-                return {
-                    path: normalizeRoutePathPattern(input.path || fallbackSource.path || '/'),
-                    container: input.container || fallbackSource.container || ''
-                };
             }
+        }
+        if (typeof fallbackPath === 'string' && fallbackPath) {
+            rawPaths.push(fallbackPath);
+        }
 
-            function getRoutePrimaryPath(route) {
-                if (typeof (route && route.path) === 'string' && route.path) {
-                    return normalizeRoutePathPattern(route.path);
-                }
-
-                return '/';
+        var normalized = [];
+        for (var k = 0; k < rawPaths.length; k += 1) {
+            var normalizedPath = normalizeRoutePathPattern(rawPaths[k]);
+            if (normalized.indexOf(normalizedPath) === -1) {
+                normalized.push(normalizedPath);
             }
+        }
+
+        if (!normalized.length) {
+            normalized.push('/');
+        }
+
+        return normalized;
+    }
+
+    function buildRouteConfig(routeInput, fallbackRoute) {
+        var input = routeInput || {};
+        var fallbackSource = fallbackRoute || {};
+        var mergedPaths = mergeRoutePaths(
+            input.path,
+            fallbackSource.path,
+            []
+        );
+
+        return {
+            path: mergedPaths[0],
+            paths: mergedPaths,
+            container: input.container || fallbackSource.container || ''
+        };
+    }
+
+    function getRoutePrimaryPath(route) {
+        if (typeof (route && route.path) === 'string' && route.path) {
+            return normalizeRoutePathPattern(route.path);
+        }
+
+        if (Array.isArray(route && route.paths) && route.paths.length) {
+            return normalizeRoutePathPattern(route.paths[0]);
+        }
+
+        return '/';
+    }
+
+    function getRoutePathPatterns(route) {
+        if (!route) {
+            return ['/'];
+        }
+
+        return mergeRoutePaths(route.path, '/', route.paths);
+    }
 
     function routePathMatches(pathPattern, pathname) {
         var normalizedPathname = normalizePathname(pathname);
@@ -184,7 +224,14 @@
             return false;
         }
 
-        return routePathMatches(getRoutePrimaryPath(route), pathname);
+        var pathPatterns = getRoutePathPatterns(route);
+        for (var i = 0; i < pathPatterns.length; i += 1) {
+            if (routePathMatches(pathPatterns[i], pathname)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function mergeConfig(rawConfig) {
