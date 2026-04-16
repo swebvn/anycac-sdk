@@ -1,7 +1,7 @@
 (function (global) {
     'use strict';
 
-    var SDK_VERSION = '1.1.0';
+    var SDK_VERSION = '1.1.1';
 
     var DEFAULT_CONFIG = {
         paymentStore: 'https://deceit.test',
