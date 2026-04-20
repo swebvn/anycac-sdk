@@ -796,7 +796,7 @@
         panel.style.width = 'min(560px, 96vw)';
         panel.style.height = '100%';
         panel.style.background = '#fff';
-        panel.style.borderRadius = '6px 0 0 6px';
+        panel.style.borderRadius = '0';
         panel.style.overflow = 'hidden';
         panel.style.boxShadow = '-12px 0 32px rgba(0, 0, 0, 0.18)';
         panel.style.display = 'flex';
@@ -823,9 +823,8 @@
         closeBtn.type = 'button';
         closeBtn.textContent = 'Close';
         closeBtn.style.border = 'none';
-        closeBtn.style.background = '#111';
-        closeBtn.style.color = '#fff';
-        closeBtn.style.borderRadius = '8px';
+        closeBtn.style.background = 'transparent';
+        closeBtn.style.color = '#000';
         closeBtn.style.padding = '8px 12px';
         closeBtn.style.cursor = 'pointer';
         closeBtn.style.fontSize = '13px';
