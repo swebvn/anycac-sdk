@@ -1,7 +1,7 @@
 (function (global) {
     'use strict';
 
-    var SDK_VERSION = '1.1.1';
+    var SDK_VERSION = '1.1.2';
 
     var DEFAULT_CONFIG = {
         paymentStore: 'https://deceit.test',
@@ -397,6 +397,12 @@
             || hasStripeReturnCancel(url);
     }
 
+    function hasEmbeddedReturnParams(url) {
+        return url.searchParams.has('embed_url')
+            || url.searchParams.has('anycac_return_url')
+            || url.searchParams.has('return_url');
+    }
+
     function isPayPalReturnSuccess(url) {
         return hasPayPalReturn(url)
             && url.searchParams.get('error') === '0'
@@ -409,6 +415,11 @@
 
     function getCurrentRouteName() {
         var pathname = normalizePathname(window.location.pathname);
+        var returnPrimaryPath = getRoutePrimaryPath(state.config.routes.return);
+        if (pathname === returnPrimaryPath || pathname.indexOf(returnPrimaryPath + '/') === 0) {
+            return 'return';
+        }
+
         var routeNames = Object.keys(state.config.routes);
 
         for (var i = 0; i < routeNames.length; i += 1) {
@@ -444,15 +455,22 @@
 
     function recoverCallbackBeforeInit() {
         var currentUrl = new URL(window.location.href);
-        if (!hasRelayParams(currentUrl)) {
+        if (!hasRelayParams(currentUrl) && !hasEmbeddedReturnParams(currentUrl)) {
             return false;
+        }
+
+        if (normalizePathname(currentUrl.pathname) === '/') {
+            var rootDestination = routeToBootstrapUrl('return');
+            rootDestination.search = currentUrl.search;
+            window.location.replace(rootDestination.toString());
+            return true;
         }
 
         if (isKnownBootstrapRoute(currentUrl.pathname)) {
             return false;
         }
 
-        var destination = routeToBootstrapUrl(isSuccessfulReturn(currentUrl) ? 'return' : 'checkout');
+        var destination = routeToBootstrapUrl('return');
         destination.search = currentUrl.search;
         window.location.replace(destination.toString());
         return true;
@@ -623,7 +641,7 @@
             return document.querySelector(routeConfig.container);
         }
 
-        return document.body;
+        return document.body || document.documentElement || null;
     }
 
     function ensureManagedIframe(container, routeName) {
@@ -662,8 +680,80 @@
 
     function buildForwardSrc(currentUrl) {
         var params = new URLSearchParams(currentUrl.search);
+        params.set('anycac_parent_origin', window.location.origin);
+        params.set('anycac_return_path', getRoutePrimaryPath(state.config.routes.return));
         params.set('anycac_iframe_forward', '1');
         return getPaymentStoreBase() + '/?' + params.toString();
+    }
+
+    function buildCheckoutSrc() {
+        var checkoutUrl = new URL('/checkout/', getPaymentStoreBase() + '/');
+        checkoutUrl.searchParams.set('anycac_parent_origin', window.location.origin);
+        checkoutUrl.searchParams.set('anycac_return_path', getRoutePrimaryPath(state.config.routes.return));
+        return checkoutUrl.toString();
+    }
+
+    function decodeUrlValue(value) {
+        if (typeof value !== 'string' || !value) {
+            return '';
+        }
+
+        var decoded = value;
+        for (var i = 0; i < 2; i += 1) {
+            try {
+                var nextValue = decodeURIComponent(decoded);
+                if (nextValue === decoded) {
+                    break;
+                }
+                decoded = nextValue;
+            } catch (error) {
+                break;
+            }
+        }
+
+        return decoded;
+    }
+
+    function getEmbeddedReturnUrl(currentUrl) {
+        var rawValue = currentUrl.searchParams.get('embed_url')
+            || currentUrl.searchParams.get('anycac_return_url')
+            || currentUrl.searchParams.get('return_url');
+        if (!rawValue) {
+            return null;
+        }
+
+        var decodedValue = decodeUrlValue(rawValue);
+        if (!decodedValue) {
+            return null;
+        }
+
+        try {
+            return new URL(decodedValue, getPaymentStoreBase() + '/');
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function withIframeForward(urlObject) {
+        var next = new URL(urlObject.toString());
+        next.searchParams.set('anycac_iframe_forward', '1');
+        return next;
+    }
+
+    function getReturnPathRemainder(currentUrl) {
+        var basePath = getRoutePrimaryPath(state.config.routes.return);
+        var normalizedBase = normalizePathname(basePath);
+        var pathname = normalizePathname(currentUrl.pathname || '/');
+
+        if (pathname === normalizedBase) {
+            return '';
+        }
+
+        if (pathname.indexOf(normalizedBase + '/') !== 0) {
+            return null;
+        }
+
+        return pathname.slice(normalizedBase.length + 1);
     }
 
     function mountCart(target) {
@@ -694,7 +784,7 @@
         }
 
         if (!hasRelayParams(currentUrl)) {
-            frame.src = getPaymentStoreBase() + '/checkout/';
+            frame.src = buildCheckoutSrc();
             return;
         }
 
@@ -707,6 +797,21 @@
         state.currentView = 'return';
         var frame = resolveRouteFrame('return', target);
         var currentUrl = new URL(window.location.href);
+        var embeddedReturnUrl = getEmbeddedReturnUrl(currentUrl);
+
+        if (embeddedReturnUrl) {
+            frame.src = withIframeForward(embeddedReturnUrl).toString();
+            return;
+        }
+
+        var remainingPath = getReturnPathRemainder(currentUrl);
+        if (remainingPath !== null) {
+            var reconstructed = new URL(getPaymentStoreBase() + '/');
+            reconstructed.pathname = remainingPath ? '/' + remainingPath : '/';
+            reconstructed.search = currentUrl.search;
+            frame.src = withIframeForward(reconstructed).toString();
+            return;
+        }
 
         var orderId = currentUrl.searchParams.get('order_id') || currentUrl.searchParams.get('anycac_order_id');
         var orderKey = currentUrl.searchParams.get('order_key') || currentUrl.searchParams.get('key') || currentUrl.searchParams.get('anycac_order_key');
@@ -757,7 +862,7 @@
 
     function routePaymentCallbacks() {
         var currentUrl = new URL(window.location.href);
-        if (!hasRelayParams(currentUrl)) {
+        if (!hasRelayParams(currentUrl) && !hasEmbeddedReturnParams(currentUrl)) {
             return false;
         }
 
@@ -766,10 +871,19 @@
             return false;
         }
 
-        var destination = routeToUrl(isSuccessfulReturn(currentUrl) ? 'return' : 'checkout');
+        var destination = routeToUrl('return');
         destination.search = currentUrl.search;
         window.location.replace(destination.toString());
         return true;
+    }
+
+    function whenDocumentReady(callback) {
+        if (document.body) {
+            callback();
+            return;
+        }
+
+        document.addEventListener('DOMContentLoaded', callback, { once: true });
     }
 
     function ensureModal() {
@@ -938,7 +1052,9 @@
         state.currentView = getCurrentRouteName();
 
         if (state.config.autoMount) {
-            mountCurrentRoute();
+            whenDocumentReady(function () {
+                mountCurrentRoute();
+            });
         }
 
         bindCartTrigger(state.config.cartTrigger);
